@@ -14,15 +14,15 @@ using namespace clang::tooling;
 using namespace llvm;
 
 #define CPP_COMP 0
-#define COMPILER_NAME "eosio-cc"
+#define COMPILER_NAME "enumivo-cc"
 #include <compiler_options.hpp>
 
 int main(int argc, const char **argv) {
 
   cl::SetVersionPrinter([](llvm::raw_ostream& os) {
-        os << COMPILER_NAME << " version " << ${EOSIO_VER_MAJOR} << "." << ${EOSIO_VER_MINOR} << "." << ${EOSIO_VER_REVISION} << "\n";
+        os << COMPILER_NAME << " version " << ${ENUMIVO_VER_MAJOR} << "." << ${ENUMIVO_VER_MINOR} << "." << ${ENUMIVO_VER_REVISION} << "\n";
   });
-  cl::ParseCommandLineOptions(argc, argv, std::string(COMPILER_NAME)+" (Eosio C -> WebAssembly compiler)");
+  cl::ParseCommandLineOptions(argc, argv, std::string(COMPILER_NAME)+" (Enumivo C -> WebAssembly compiler)");
   Options opts = CreateOptions();
 
   std::string line;
@@ -47,7 +47,7 @@ int main(int argc, const char **argv) {
   //
   if (opts.link) {
      ipstream link_stream;
-     std::string linkstr = std::string(WhereAmI()+"/eosio-ld "+opts.linker);
+     std::string linkstr = std::string(WhereAmI()+"/enumivo-ld "+opts.linker);
      try {
         child link(linkstr.c_str(), std_out > link_stream);
         line = "";
