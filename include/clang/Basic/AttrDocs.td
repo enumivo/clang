@@ -851,10 +851,10 @@ Sample usage:
   }];
 }
 
-def EosioActionDocs : Documentation {
+def EnumivoActionDocs : Documentation {
   let Category = DocCatFunction;
   let Content = [{
-The ``eosio-action`` attribute marks a method as being an eosio action.
+The ``enumivo-action`` attribute marks a method as being an enumivo action.
   }];
 }
 
