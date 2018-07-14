@@ -273,7 +273,7 @@ static std::string GetCompDefaults() {
 static std::string GetLdDefaults() {
    const char* stack_size = "${ENUMIVO_STACK_SIZE}";
    std::string ret = " -e apply --gc-sections --strip-all -zstack-size="+std::string(stack_size)+" "
-                     " --merge-data-segments -L"+WhereAmI()+"/../enumivo.wasmsdk/lib ";
+                     " --merge-data-segments -L"+WhereAmI()+"/../enu.wasmsdk/lib ";
    return ret;
 }
 #endif
