@@ -261,7 +261,7 @@ static std::string GetCompDefaults() {
    else if (boost::filesystem::exists(WhereAmI()+"/../lib/LLVMEnumivoApply"+enumivo_apply_suff))
       apply_lib = WhereAmI()+"/../lib/LLVMEnumivoApply"+enumivo_apply_suff;
    
-   std::string ret = " --target=wasm32 -nostdlib -ffreestanding -fno-builtin "
+   std::string ret = " --target=wasm32 -nostdlib -ffreestanding -fno-builtin -fno-threadsafe-statics "
 #ifdef CPP_COMP
           " -fno-rtti -fno-exceptions "
 #endif
@@ -441,6 +441,8 @@ static Options CreateOptions(bool add_defaults=true) {
 
 #ifndef ONLY_LD
 #ifdef CPP_COMP
+   if (!std_opt.empty())
+      comp_ss << " -std=" << std_opt << " ";
    if (faligned_allocation_opt)  
       comp_ss << " -faligned-allocation ";
    if (fcoroutine_ts_opt)  
