@@ -48,7 +48,7 @@ int main(int argc, const char **argv) {
   if (!fno_post_pass_opt) {
      ipstream final_stream;
      if ( !boost::filesystem::exists( opts.enumivo_pp_dir+"/enumivo-pp" ) ) {
-        std::cout << "Error: enumivo.pp not found! (Try reinstalling enu.wasmsdk)" << std::endl;
+        std::cout << "Error: enumivo.pp not found! (Try reinstalling enumivo.wasmsdk)" << std::endl;
         return -1;
      }
         
