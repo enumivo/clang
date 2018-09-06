@@ -11,18 +11,18 @@ include_directories(include)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/enumivo-cc.cpp.in ${CMAKE_BINARY_DIR}/enumivo-cc.cpp)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/enumivo-cpp.cpp.in ${CMAKE_BINARY_DIR}/enumivo-cpp.cpp)
 
-add_clang_executable(enumivo-cc ${CMAKE_BINARY_DIR}/enumivo-cc.cpp ${CMAKE_CURRENT_SOURCE_DIR}/../whereami.cpp)
+add_clang_executable(enumivo-cc ${CMAKE_BINARY_DIR}/enumivo-cc.cpp ${CMAKE_CURRENT_SOURCE_DIR}/../whereami/whereami.cpp)
 target_compile_options(enumivo-cc PRIVATE -fexceptions)
-target_include_directories(enumivo-cc PUBLIC ${Boost_INCLUDE_DIR} ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../enumivo_tool_include ${CMAKE_CURRENT_SOURCE_DIR}/../)
+target_include_directories(enumivo-cc PUBLIC ${Boost_INCLUDE_DIR} ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_CURRENT_SOURCE_DIR}/../whereami)
 target_link_libraries(enumivo-cc PRIVATE
   clangTooling
   clangBasic
   clangASTMatchers
   ${Boost_LIBRARIES})
 
-add_clang_executable(enumivo-cpp ${CMAKE_BINARY_DIR}/enumivo-cpp.cpp ${CMAKE_CURRENT_SOURCE_DIR}/../whereami.cpp)
+add_clang_executable(enumivo-cpp ${CMAKE_BINARY_DIR}/enumivo-cpp.cpp ${CMAKE_CURRENT_SOURCE_DIR}/../whereami/whereami.cpp)
 target_compile_options(enumivo-cpp PRIVATE -fexceptions)
-target_include_directories(enumivo-cpp PUBLIC ${Boost_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../enumivo_tool_include ${CMAKE_CURRENT_SOURCE_DIR}/../ ${CMAKE_BINARY_DIR})
+target_include_directories(enumivo-cpp PUBLIC ${Boost_INCLUDE_DIR} ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../include ${CMAKE_CURRENT_SOURCE_DIR}/../whereami)
 target_link_libraries(enumivo-cpp PRIVATE
   clangTooling
   clangBasic
