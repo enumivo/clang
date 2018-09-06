@@ -200,6 +200,7 @@ that appears to be capable of returning to its caller.
   }];
 }
 
+
 def CXX11NoReturnDocs : Documentation {
   let Category = DocCatFunction;
   let Content = [{
@@ -854,7 +855,14 @@ Sample usage:
 def EnumivoActionDocs : Documentation {
   let Category = DocCatFunction;
   let Content = [{
-The ``enumivo-action`` attribute marks a method as being an enumivo action.
+The ``enumivo::action`` attribute marks a method as being an enumivo action.
+  }];
+}
+
+def EnumivoTableDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+The ``enumivo::table`` attribute marks a record as being an enumivo table.
   }];
 }
 

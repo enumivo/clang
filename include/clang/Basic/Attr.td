@@ -929,6 +929,21 @@ def C11NoReturn : InheritableAttr {
   let Documentation = [C11NoReturnDocs];
 }
 
+def EnumivoAction : InheritableAttr {
+   let Spellings = [CXX11<"enumivo", "action">, GNU<"enumivo_action">];
+   let Args = [StringArgument<"name", 1>];
+   let Subjects = SubjectList<[CXXRecord, CXXMethod]>;
+   let Documentation = [EnumivoActionDocs];
+}
+
+def EnumivoTable : InheritableAttr {
+   let Spellings = [CXX11<"enumivo", "table">, GNU<"enumivo_table">];
+   let Args = [StringArgument<"name", 1>];
+   let Subjects = SubjectList<[CXXRecord]>;
+   let MeaningfulToClassTemplateDefinition = 1;
+   let Documentation = [EnumivoTableDocs];
+}
+
 def CXX11NoReturn : InheritableAttr {
   let Spellings = [CXX11<"", "noreturn", 200809>];
   let Subjects = SubjectList<[Function], ErrorDiag>;
@@ -1401,13 +1416,6 @@ def NoSplitStack : InheritableAttr {
   let Spellings = [GCC<"no_split_stack">];
   let Subjects = SubjectList<[Function], ErrorDiag>;
   let Documentation = [NoSplitStackDocs];
-}
-
-def EnumivoAction : InheritableAttr {
-  let Spellings = [GCC<"enumivo_action">];
-  let Subjects = SubjectList<[Function], WarnDiag,
-                             "functions">;
-  let Documentation = [EnumivoActionDocs];
 }
 
 def NonNull : InheritableParamAttr {

@@ -52,6 +52,7 @@
 #include <iterator>
 #include <memory>
 #include <vector>
+#include <iostream>
 
 namespace clang {
 
@@ -724,6 +725,11 @@ public:
 
   /// Iterator that traverses the base classes of a class.
   using base_class_const_iterator = const CXXBaseSpecifier *;
+  bool isEnumivoAction() const { return hasAttr<EnumivoActionAttr>(); }
+  bool isEnumivoTable() const { return hasAttr<EnumivoTableAttr>(); }
+  EnumivoActionAttr* getEnumivoActionAttr() const { return getAttr<EnumivoActionAttr>(); }
+  EnumivoTableAttr*  getEnumivoTableAttr() const { return getAttr<EnumivoTableAttr>(); }
+
 
   CXXRecordDecl *getCanonicalDecl() override {
     return cast<CXXRecordDecl>(RecordDecl::getCanonicalDecl());
@@ -1561,7 +1567,7 @@ public:
             hasConstexprNonCopyMoveConstructor() ||
             hasTrivialDefaultConstructor());
   }
-
+  
   /// If this record is an instantiation of a member class,
   /// retrieves the member class from which it was instantiated.
   ///
@@ -2057,6 +2063,8 @@ public:
 
   bool isStatic() const;
   bool isInstance() const { return !isStatic(); }
+  bool isEnumivoAction() const { return hasAttr<EnumivoActionAttr>(); }
+  EnumivoActionAttr* getEnumivoActionAttr() const { return getAttr<EnumivoActionAttr>(); }
 
   /// Returns true if the given operator is implicitly static in a record
   /// context.

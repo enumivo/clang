@@ -386,7 +386,29 @@ bool Sema::checkStringLiteralArgumentAttr(const AttributeList &AL,
   Str = Literal->getString();
   return true;
 }
+static void handleEnumivoActionAttribute(Sema &S, Decl *D, const AttributeList &AL) {
+  // Handle the cases where the attribute has a text message.
+  StringRef Str, Replacement;
+  if (AL.isArgExpr(0) && AL.getArgAsExpr(0) &&
+      !S.checkStringLiteralArgumentAttr(AL, 0, Str))
+    return;
 
+  D->addAttr(::new (S.Context)
+                 EnumivoActionAttr(AL.getRange(), S.Context, Str,
+                                AL.getAttributeSpellingListIndex()));
+}
+
+static void handleEnumivoTableAttribute(Sema &S, Decl *D, const AttributeList &AL) {
+  // Handle the cases where the attribute has a text message.
+  StringRef Str, Replacement;
+  if (AL.isArgExpr(0) && AL.getArgAsExpr(0) &&
+      !S.checkStringLiteralArgumentAttr(AL, 0, Str))
+    return;
+
+  D->addAttr(::new (S.Context)
+                 EnumivoTableAttr(AL.getRange(), S.Context, Str,
+                                AL.getAttributeSpellingListIndex()));
+}
 /// Applies the given attribute to the Decl without performing any
 /// additional semantic checking.
 template <typename AttrType>
@@ -5599,6 +5621,9 @@ static void handleRequiresCapabilityAttr(Sema &S, Decl *D,
   D->addAttr(RCA);
 }
 
+
+
+
 static void handleDeprecatedAttr(Sema &S, Decl *D, const AttributeList &AL) {
   if (const auto *NSD = dyn_cast<NamespaceDecl>(D)) {
     if (NSD->isAnonymousNamespace()) {
@@ -5818,6 +5843,12 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
     }
     S.Diag(AL.getLoc(), diag::err_stmt_attribute_invalid_on_decl)
         << AL.getName() << D->getLocation();
+    break;
+  case AttributeList::AT_EnumivoAction:
+    handleEnumivoActionAttribute(S, D, AL);
+    break;
+  case AttributeList::AT_EnumivoTable:
+    handleEnumivoTableAttribute(S, D, AL);
     break;
   case AttributeList::AT_Interrupt:
     handleInterruptAttr(S, D, AL);
