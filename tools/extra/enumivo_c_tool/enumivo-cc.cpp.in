@@ -67,7 +67,7 @@ int main(int argc, const char **argv) {
   if (opts.abigen) {
      ipstream gen_stream;
      try {
-        std::string genstr = std::string(WhereAmI()+"/enugenabi ")+opts.abigen_input+std::string(" -output=")+opts.output_fn.substr(0, opts.output_fn.rfind(".wasm"))+std::string(".abi -- -Wno-unused-command-line-argument ")+opts.abigen_s;
+        std::string genstr = std::string(WhereAmI()+"/enumivo-abigen ")+opts.abigen_input+std::string(" -output=")+opts.output_fn.substr(0, opts.output_fn.rfind(".wasm"))+std::string(".abi -- -Wno-unused-command-line-argument ")+opts.abigen_s;
         child cabigen(genstr.c_str(), std_out > gen_stream);
         line = "";
         while (gen_stream && std::getline(gen_stream, line) && !line.empty())
