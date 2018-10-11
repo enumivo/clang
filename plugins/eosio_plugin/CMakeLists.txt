@@ -1,0 +1,1 @@
+add_llvm_loadable_module(enumivo_plugin enumivo_autogen.cpp PLUGIN_TOOL clang)

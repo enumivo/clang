@@ -5,10 +5,12 @@
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
 #include "clang/Basic/Builtins.h"
-#include <boost/process.hpp>
-#include <boost/filesystem.hpp>
+#include "enumivo/utils.hpp"
+#include "enumivo/gen.hpp"
+#include "enumivo/whereami/whereami.hpp"
 
 #include <exception>
 #include <iostream>
@@ -21,34 +23,17 @@
 #include <ctime>
 
 #include "abi.hpp"
-#include <whereami.h>
 #include <jsoncons/json.hpp>
 
 // Declares llvm::cl::extrahelp.
 #include "llvm/Support/CommandLine.h"
-using namespace boost::process;
 using namespace clang::tooling;
 using namespace clang::ast_matchers;
 using namespace llvm;
+using namespace enumivo;
+using namespace enumivo::cdt;
 using jsoncons::json;
 using jsoncons::ojson;
-
-static std::string WhereAmI() {
-   static bool cached = false;
-   static std::vector<char> ret;
-   if (cached)
-      return {ret.data()};
-
-   int dirname_len = 0;
-   auto len = wai_getExecutablePath(NULL, 0, &dirname_len);
-   if (len <= 0) 
-      return "";
-   ret.resize(len+1);
-   wai_getExecutablePath(ret.data(), len, &dirname_len);
-   ret[dirname_len] = '\0';
-   cached = true;
-   return {ret.data()};
-}
 
 struct abigen_exception : public std::exception {
    virtual const char* what() const throw() {
@@ -56,481 +41,269 @@ struct abigen_exception : public std::exception {
    }
 } abigen_ex;
 
-uint64_t char_to_symbol( char c ) {
-   if( c >= 'a' && c <= 'z' )
-      return (c - 'a') + 6;
-   if( c >= '1' && c <= '5' )
-      return (c - '1') + 1;
-   return 0;
-}
-
-uint64_t string_to_name( const char* str )
-{
-   uint64_t name = 0;
-   int i = 0;
-   for ( ; str[i] && i < 12; ++i) {
-       // NOTE: char_to_symbol() returns char type, and without this explicit
-       // expansion to uint64 type, the compilation fails at the point of usage
-       // of string_to_name(), where the usage requires constant (compile time) expression.
-        name |= (char_to_symbol(str[i]) & 0x1f) << (64 - 5 * (i + 1));
-    }
-
-   // The for-loop encoded up to 60 high bits into uint64 'name' variable,
-   // if (strlen(str) > 12) then encode str[12] into the low (remaining)
-   // 4 bits of 'name'
-   if (i == 12)
-       name |= char_to_symbol(str[12]) & 0x0F;
-   return name;
-}
-
-void validate_name( const std::string& str ) {
-   const auto len = str.length();
-   if ( len > 13 ) { 
-      std::cout << "Error, name {" << str << "} is more than 13 characters long\n";
-      throw abigen_ex;
-   }
-   uint64_t value = string_to_name( str.c_str() );
-
-   static const char* charmap = ".12345abcdefghijklmnopqrstuvwxyz";
-   std::string str2(13,'.');
-
-   uint64_t tmp = value;
-   for( uint32_t i = 0; i <= 12; ++i ) {
-      char c = charmap[tmp & (i == 0 ? 0x0f : 0x1f)];
-      str2[12-i] = c;
-      tmp >>= (i == 0 ? 4 : 5);
-   }
-
-   boost::algorithm::trim_right_if( str2, []( char c ){ return c == '.'; } );
-
-   if ( str2 != str ) {
-      std::cout << "Error, name not properly normalized\n";
-      throw abigen_ex;
-   }
-}
 
 DeclarationMatcher function_decl_matcher = cxxMethodDecl().bind("enumivo_abis");
 DeclarationMatcher record_decl_matcher = cxxRecordDecl().bind("enumivo_abis");
-TypeMatcher typedef_decl_matcher = type().bind("enumivo_abis");
+DeclarationMatcher typedef_decl_matcher = typedefDecl().bind("enumivo_abis");
+auto               class_tmp_matcher    = classTemplateSpecializationDecl().bind("enumivo_abis");
 
-abi _abi;
-
-bool is_vector_type( const clang::QualType& type ) {
-   if ( auto tst = llvm::dyn_cast<clang::TemplateSpecializationType>(type.getTypePtr()) )
-      if ( type.getBaseTypeIdentifier()->getName().str() == "__vector_base" )
-         return true;
-   return false;
-}
-
-clang::QualType get_vector_type( const clang::QualType& type ) {
-   if ( auto tst = llvm::dyn_cast<clang::TemplateSpecializationType>(type.getTypePtr()) )
-      return tst->getArg(0).getAsType();
-}
-
-std::string get_base_type_name( const clang::QualType& type ) {
-   clang::QualType newType = type;
-   bool is_a_vector = is_vector_type(type);
-   if ( is_a_vector )
-      newType = get_vector_type(type); 
-   if (is_vector_type(newType)) {
-      std::cout << "Error, can't have nested vectors\n";
-      throw abigen_ex;
+class abigen : public generation_utils {
+   public:
+   abigen() : generation_utils([&](){throw abigen_ex;}) {}
+   void add_typedef( const clang::QualType& t ) {
+      abi_typedef ret;
+      ret.new_type_name = get_base_type_name( t );
+      ret.type = get_type_alias( t );
+      _abi.typedefs.insert(ret);
    }
-   std::string type_str = newType.getNonReferenceType().getAsString();
-   int i = type_str.length()-1;
-   for (; i > 0; i--)
-      if (type_str[i] == ':' || type_str[i] == ' ') {
-         return type_str.substr(i+1); 
+
+   void add_action( const clang::CXXRecordDecl* decl ) {
+      abi_action ret;
+      auto action_name = decl->getEnumivoActionAttr()->getName();
+
+      if (action_name.empty()) {
+         try {
+            validate_name( decl->getName().str(), error_handler );
+         } catch (...) {
+            std::cout << "Error, name <" <<decl->getName().str() << "> is an invalid Enumivo name.\n";
+            throw;
+         }
+         ret.name = decl->getName().str();
+      }
+      else {
+         try {
+            validate_name( action_name.str(), error_handler );
+         } catch (...) {
+            std::cout << "Error, name <" << action_name.str() << "> is an invalid Enumivo name.\n";
+            throw;
+         }
+         ret.name = action_name.str();
+      }
+      ret.type = decl->getName().str();
+      _abi.actions.insert(ret);
+   }
+
+   void add_action( const clang::CXXMethodDecl* decl ) {
+      abi_action ret;
+
+      auto action_name = decl->getEnumivoActionAttr()->getName();
+      if (action_name.empty()) {
+         try {
+            validate_name( decl->getNameAsString(), error_handler );
+         } catch (...) {
+            std::cout << "Error, name <" <<decl->getNameAsString() << "> is an invalid Enumivo name.\n";
+         }
+         ret.name = decl->getNameAsString();
+      }
+      else {
+         try {
+            validate_name( action_name.str(), error_handler );
+         } catch (...) {
+            std::cout << "Error, name <" << action_name.str() << "> is an invalid Enumivo name.\n";
+         }
+         ret.name = action_name.str();
+      }
+      ret.type = decl->getNameAsString();
+      _abi.actions.insert(ret);
+   }
+
+   void add_struct( const clang::CXXRecordDecl* decl ) {
+      abi_struct ret;
+      if ( decl->getNumBases() > 1 ) {
+         std::cerr << "Error: abigen can only handle single inheritance <class " << decl->getName().str() << ">\n";
+         throw abigen_ex;
+      }
+      else if ( decl->getNumBases() == 1 ) {
+         ret.base = get_type(decl->bases_begin()->getType());
+         add_struct(decl->bases_begin()->getType().getTypePtr()->getAsCXXRecordDecl());
       }
 
-   return type_str;
-}
-
-std::string translate_type( const clang::QualType& t ) {
-   std::map<std::string, std::string> translation_table =
-   {
-      {"unsigned __int128", "uint128"},
-      {"__int128", "int128"},
-      {"uint128_t", "uint128"},
-      {"int128_t", "int128"},
-
-      {"unsigned long long", "uint64"},
-      {"long long", "int64"},
-      {"uint64_t", "uint64"},
-      {"int64_t", "int64"},
-
-      {"unsigned long", "uint32"},
-      {"long", "int32"},
-      {"unsigned int", "uint32"},
-      {"int", "int32"},
-      {"uint32_t", "uint32"},
-      {"int32_t", "int32"},
-
-      {"unsigned short", "uint16"},
-      {"short", "int16"},
-      {"uint16_t", "uint16"},
-      {"int16_t", "int16"},
-
-      {"unsigned char", "uint8"},
-      {"char", "int8"},
-      {"uint8_t", "uint8"},
-      {"int8_t", "int8"},
-
-      {"float",  "float32"},
-      {"double", "float64"},
-      {"long double", "float128"},
-      
-      {"account_name", "name"},
-      {"permission_name", "name"},
-      {"table_name", "name"},
-      {"scope_name", "name"},
-      {"action_name", "name"},
-      {"symbol_type", "symbol"}
-   }; 
-   std::string base_name = get_base_type_name(t);
-   auto ret = translation_table[get_base_type_name(t)];
-   if (ret == "")
-      return t.getNonReferenceType().getAsString();
-   return ret;
-}
-
-bool is_name_type( const std::string& t ) {
-   static const std::set<std::string> name_types = { "name", 
-                                                     "account_name",
-                                                     "permission_name",
-                                                     "table_name",
-                                                     "scope_name",
-                                                     "action_name" };
-   return name_types.count(t) >= 1;
-}
-
-bool is_builtin_type( const std::string& t ) {
-   static const std::set<std::string> builtins =
-   {
-      "bool",
-      "int8",
-      "uint8",
-      "int16",
-      "uint16",
-      "int32",
-      "uint32",
-      "int64",
-      "uint64",
-      "int128",
-      "uint128",
-      "varint32",
-      "varuint32",
-      "float32",
-      "float64",
-      "float128",
-      "time_point",
-      "time_point_sec",
-      "block_timestamp_type",
-      "name",
-      "bytes",
-      "string",
-      "checksum160",
-      "checksum256",
-      "checksum512",
-      "public_key",
-      "signature",
-      "symbol",
-      "symbol_code",
-      "asset",
-      "extended_asset"
-   };
-   return builtins.count(t) >= 1;
-}
-
-bool is_cxx_record( const clang::QualType& t ) {
-   return t.getTypePtr()->isRecordType();
-}
-
-
-std::string get_type( const clang::QualType& t ) {
-   std::string type = translate_type( t );
-   if ( !is_builtin_type( type ) && !is_name_type( type ) )
-      type = get_base_type_name( t );
-   return type;
-}
-
-std::string get_type_alias( const clang::QualType& t ) {
-   if (is_name_type(get_base_type_name(t)))
-      return "name";
-   return get_type(clang::QualType(t).getCanonicalType());
-}
-
-bool is_aliasing( const clang::QualType& t ) {
-   if (is_name_type(get_base_type_name(t)))
-      return true;
-   return get_base_type_name(t).compare(get_type_alias(t)) != 0;
-}
-
-void add_typedef( const clang::QualType& t, abi& abi ) {
-   abi_typedef ret;
-   ret.new_type_name = get_base_type_name( t );
-   ret.type = get_type_alias( t );
-   abi.typedefs.insert(ret);
-}
-
-void add_action( const clang::CXXRecordDecl* decl, abi& abi ) {
-   abi_action ret;
-   auto action_name = decl->getEnumivoActionAttr()->getName();
-
-   if (action_name.empty()) {
-      try {
-         validate_name( decl->getName().str() );
-      } catch (...) {
-         std::cout << "Error, name <" <<decl->getName().str() << "> is an invalid Enumivo name.\n";
-         throw;
+      for ( auto field : decl->fields() ) {
+         if ( field->getName() == "transaction_extensions") {
+            abi_struct ext;
+            ext.name = "extension";
+            ext.fields.push_back( {"type", "uint16"} );
+            ext.fields.push_back( {"data", "bytes"} );
+            ret.fields.push_back( {"transaction_extensions", "extension[]"});
+            _abi.structs.insert(ext);
+         }
+         else {
+            ret.fields.push_back({field->getName().str(), get_type(field->getType())});
+            if ( is_template_specialization(field->getType(), {"vector", "optional"})) {
+               if ( get_template_argument(field->getType())->isRecordType() )
+                     add_struct(get_template_argument(field->getType()).getTypePtr()->getAsCXXRecordDecl());
+            }
+         }
       }
+
       ret.name = decl->getName().str();
-   }
-   else {
-      try {
-         validate_name( action_name.str() );
-      } catch (...) {
-         std::cout << "Error, name <" << action_name.str() << "> is an invalid Enumivo name.\n";
-         throw;
-      }
-      ret.name = action_name.str();
-   }
-   ret.type = decl->getName().str();
-   abi.actions.insert(ret);
-}
-void add_action( const clang::CXXMethodDecl* decl, abi& abi ) {
-   abi_action ret;
-
-   auto action_name = decl->getEnumivoActionAttr()->getName();
-   if (action_name.empty()) {
-      try {
-         validate_name( decl->getNameAsString() );
-      } catch (...) {
-         std::cout << "Error, name <" <<decl->getNameAsString() << "> is an invalid Enumivo name.\n";
-      }
-      ret.name = decl->getNameAsString();
-   }
-   else {
-      try {
-         validate_name( action_name.str() );
-      } catch (...) {
-         std::cout << "Error, name <" << action_name.str() << "> is an invalid Enumivo name.\n";
-      }
-      ret.name = action_name.str();
-   }
-   ret.type = decl->getNameAsString();
-   abi.actions.insert(ret);
-}
-
-void add_struct( const clang::CXXRecordDecl* decl, abi& abi ) {
-   abi_struct ret;
-   if ( decl->getNumBases() > 1 ) {
-      std::cerr << "Error: abigen can only handle single inheritance <class " << decl->getName().str() << ">\n";
-      throw abigen_ex;
-   }
-   else if ( decl->getNumBases() == 1 )
-      ret.base = get_type(decl->bases_begin()->getType());
-
-   for ( auto field : decl->fields() ) {
-      ret.fields.push_back({field->getName().str(), get_type(field->getType())});
+      _abi.structs.insert(ret);
    }
 
-   ret.name = decl->getName().str();
-   abi.structs.insert(ret);
-}
+   void add_struct( const clang::CXXMethodDecl* decl ) {
+      abi_struct new_struct;
+      new_struct.name = decl->getNameAsString();
+      for (auto param : decl->parameters() ) {
+         auto param_type = param->getType().getNonReferenceType().getUnqualifiedType();
+         if (is_ignorable(param->getType()))
+            param_type = get_ignored_type( param->getType() );
 
-void add_struct( const clang::CXXMethodDecl* decl, abi& abi ) {
-   abi_struct new_struct;
-   new_struct.name = decl->getNameAsString();
-   for (auto param : decl->parameters() ) {
-      auto param_type = param->getType();
-      if (!is_builtin_type(get_type(param_type))) {
-         if (is_aliasing(param_type))
-            add_typedef(param_type, abi);
-         if (param_type.getTypePtr()->isRecordType()) {
-            add_struct( param_type.getTypePtr()->getAsCXXRecordDecl(), abi );
-         }
-      }
-      new_struct.fields.push_back({param->getNameAsString(), get_type(param_type.getUnqualifiedType())});
-   }
-   abi.structs.insert(new_struct);
-}
-
-std::string to_index_type( std::string t ) {
-   return "i64";
-}
-
-void add_table( const clang::CXXRecordDecl* decl, abi& abi ) {
-   abi_table t;
-
-   t.type = decl->getNameAsString();
-   auto table_name = decl->getEnumivoTableAttr()->getName();
-   if (!table_name.empty()) {
-      try {
-         validate_name( table_name.str() );
-      } catch (...) {
-      }
-      t.name = table_name.str();
-   }
-   else {
-      t.name = std::string("enumivo_ptable:::")+t.type;
-      
-   }
-
-   if (abi.ptables.find(t.type) == abi.ptables.end())
-      abi.ptables.emplace(t.type, std::set<abi_table>{t});
-   else
-      abi.ptables.at(t.type).insert(t);
-   abi.tables.insert(t);
-   /*
-   // get the primary_key name
-   for ( auto method : decl->methods() ) {
-      if ( method->getName() == "primary_key" ) 
-         if ( auto cs = dyn_cast<clang::CompoundStmt>(method->getBody()) )
-            if ( auto ret = dyn_cast<clang::ReturnStmt>(cs->body_front()) ) {
-               if ( auto me = dyn_cast<clang::MemberExpr>(ret->getRetValue()->IgnoreImpCasts()) ) {
-                  auto name = me->getMemberNameInfo().getName().getAsString();
-                  t.key_names.push_back(name);
-                  for ( auto field : decl->fields() ) {
-                     if ( field->getName().str() == name ) {
-                        auto type = get_type( field->getType() );
-                        t.key_types.push_back(type);
-                        t.index_type = to_index_type(type);
-                     }
-                  }
-                  abi.tables.insert(t);
-               }
-            }
-   }
-   */
-}
-
-void add_multi_index_table( const clang::TemplateSpecializationType* type, abi& abi ) {
-   abi_table t;
-   if ( type->getNumArgs() >= 2 ) {
-      if ( clang::CallExpr* first = dyn_cast<clang::CallExpr>(type->getArg(0).getAsExpr()) ) {
-         if ( first->getNumArgs() == 1 ) {
-            if ( clang::StringLiteral* n = dyn_cast<clang::StringLiteral>(first->getArg(0)->IgnoreImpCasts()) ) {
-               clang::QualType second = type->getArg(1).getAsType();
-               t.name = n->getString().str();
-               t.type = get_type(second);
-               if (abi.ptables.find(t.type) == abi.ptables.end())
-                  abi.ptables.emplace(t.type, std::set<abi_table>{t});
-               else
-                  abi.ptables.at(t.type).insert(t);
-               int past_primary = 0;
-               for ( auto& arg : type->template_arguments() ) {
-                  if ( past_primary < 2 ) {
-                     past_primary++;
-                     continue;
-                  }
-                  /*
-                  auto tst = dyn_cast<clang::TemplateSpecializationType>(arg.getAsType());
-                  if ( tst->getNumArgs() >= 2 ) {
-                     if ( auto first = dyn_cast<clang::CallExpr>(tst->getArg(0).getAsExpr()->IgnoreImpCasts()) ) {
-                        if ( clang::StringLiteral* n = dyn_cast<clang::StringLiteral>(first->getArg(0)->IgnoreImpCasts()) ) {
-                           auto second = dyn_cast<clang::TemplateSpecializationType>(tst->getArg(1).getAsType());
-                           abi.ptables[t.type].key_types.push_back(get_type(second->getArg(1).getAsType()));
-                           abi.ptables[t.type].key_names.push_back(n->getString().str());
-                        }
-                     }
-                  }
-                  */
-               }
+         if (!is_builtin_type( param_type)) {
+            if (is_aliasing(param_type))
+               add_typedef(param_type);
+            if (param_type.getTypePtr()->isRecordType())
+               add_struct( param_type.getTypePtr()->getAsCXXRecordDecl() );
+            else if (is_template_specialization(param_type, {"vector", "optional"})) {
+               if ( get_template_argument(param_type)->isRecordType())
+                  add_struct(get_template_argument(param_type).getTypePtr()->getAsCXXRecordDecl());
             }
          }
+         new_struct.fields.push_back({param->getNameAsString(), get_type(param_type)});
       }
+      _abi.structs.insert(new_struct);
    }
-}
 
-std::string generate_json_comment() {
-   std::stringstream ss;
-   ss << "This file was generated with enumivo-abigen.";
-   ss << " DO NOT EDIT ";
-   auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-   ss << std::ctime(&t);
-   auto output = ss.str();
-   return output.substr(0, output.length()-1); // remove the newline character
-}
-
-ojson struct_to_json( const abi_struct& s ) {
-   ojson o;
-   o["name"] = s.name;
-   o["base"] = s.base;
-   o["fields"] = ojson::array();
-   for ( auto field : s.fields ) {
-      ojson f;
-      f["name"] = field.name;
-      f["type"] = field.type;
-      o["fields"].push_back(f);
+   std::string to_index_type( std::string t ) {
+      return "i64";
    }
-   return o;
-}
 
-ojson typedef_to_json( const abi_typedef& t ) {
-   ojson o;
-   o["new_type_name"] = t.new_type_name;
-   o["type"]          = t.type;
-   return o;
-}
-
-ojson action_to_json( const abi_action& a ) {
-   ojson o;
-   o["name"] = a.name;
-   o["type"] = a.type;
-   o["ricardian_contract"] = a.ricardian_contract;
-   return o;
-}
-
-
-
-ojson table_to_json( const abi_table& t ) {
-   ojson o;
-   o["name"] = t.name;
-   o["type"] = t.type;
-   o["index_type"] = "i64";
-   o["key_names"] = ojson::array();
-   o["key_types"] = ojson::array();
-   /*
-   for ( auto name : abi.ptables.at(t.type).key_names ) 
-      o["key_names"].push_back(name);
-   for ( auto type : abi.ptables.at(t.type).key_types ) 
-      o["key_types"].push_back(type);
-   */
-   return o;
-}
-
-ojson abi_to_json( const abi& abi ) {
-   ojson o;
-   o["____comment"] = generate_json_comment();
-   o["version"]     = abi.version;
-   o["structs"]     = ojson::array();
-   for ( auto s : abi.structs ) {
-      o["structs"].push_back(struct_to_json(s));
-   }
-   o["types"]       = ojson::array();
-   for ( auto t : abi.typedefs ) {
-      o["types"].push_back(typedef_to_json( t ));
-   }
-   o["actions"]     = ojson::array();
-   for ( auto a : abi.actions ) {
-      o["actions"].push_back(action_to_json( a ));
-   }
-   o["tables"]     = ojson::array();
-   for ( auto t : abi.tables ) {
-      for ( auto _t : abi.ptables.at(t.type) ) {
-         if ( !_t.name.empty() && _t.name.find("enumivo_ptable:::") == std::string::npos )
-            o["tables"].push_back(table_to_json( _t));
+   void add_table( const clang::CXXRecordDecl* decl ) {
+      tables.insert(decl);
+      abi_table t;
+      t.type = decl->getNameAsString();
+      auto table_name = decl->getEnumivoTableAttr()->getName();
+      if (!table_name.empty()) {
+         try {
+            validate_name( table_name.str(), error_handler );
+         } catch (...) {
+         }
+         t.name = table_name.str();
       }
+      else {
+         t.name = t.type;
+      }
+      ctables.insert(t);
    }
-   o["ricardian_clauses"]  = ojson::array();
-   o["abi_extensions"]     = ojson::array();
-   return o;
-}
 
-abi& get_abi_ref() {
-   static std::unique_ptr<abi> _abi = make_unique<abi>();
-   return *_abi;
+   void add_table( uint64_t name, const clang::CXXRecordDecl* decl ) {
+      if (!(decl->isEnumivoTable() && abigen::is_enumivo_contract(decl, get_contract_name())))
+         return;
+      abi_table t;
+      t.type = decl->getNameAsString();
+      t.name = name_to_string(name);
+      _abi.tables.insert(t);
+   }
+
+   std::string generate_json_comment() {
+      std::stringstream ss;
+      ss << "This file was generated with enumivo-abigen.";
+      ss << " DO NOT EDIT ";
+      auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+      ss << std::ctime(&t);
+      auto output = ss.str();
+      return output.substr(0, output.length()-1); // remove the newline character
+   }
+
+   ojson struct_to_json( const abi_struct& s ) {
+      ojson o;
+      o["name"] = s.name;
+      o["base"] = s.base;
+      o["fields"] = ojson::array();
+      for ( auto field : s.fields ) {
+         ojson f;
+         f["name"] = field.name;
+         f["type"] = field.type;
+         o["fields"].push_back(f);
+      }
+      return o;
+   }
+
+   ojson typedef_to_json( const abi_typedef& t ) {
+      ojson o;
+      o["new_type_name"] = t.new_type_name;
+      o["type"]          = t.type;
+      return o;
+   }
+
+   ojson action_to_json( const abi_action& a ) {
+      ojson o;
+      o["name"] = a.name;
+      o["type"] = a.type;
+      o["ricardian_contract"] = a.ricardian_contract;
+      return o;
+   }
+
+
+
+   ojson table_to_json( const abi_table& t ) {
+      ojson o;
+      o["name"] = t.name;
+      o["type"] = t.type;
+      o["index_type"] = "i64";
+      o["key_names"] = ojson::array();
+      o["key_types"] = ojson::array();
+      return o;
+   }
+
+   ojson to_json() {
+      ojson o;
+      o["____comment"] = generate_json_comment();
+      o["version"]     = _abi.version;
+      o["structs"]     = ojson::array();
+      for ( auto s : _abi.structs ) {
+         if ( !is_builtin_type(s.name) ) {
+            o["structs"].push_back(struct_to_json(s));
+         }
+      }
+      o["types"]       = ojson::array();
+      for ( auto t : _abi.typedefs ) {
+         o["types"].push_back(typedef_to_json( t ));
+      }
+      o["actions"]     = ojson::array();
+      for ( auto a : _abi.actions ) {
+         o["actions"].push_back(action_to_json( a ));
+      }
+      std::set<abi_table> set_of_tables;
+      o["tables"]     = ojson::array();
+      for ( auto t : ctables ) {
+         bool has_multi_index = false;
+         for ( auto u : _abi.tables ) {
+            if (t.type == u.type) {
+               has_multi_index = true;
+               break;
+            }
+            set_of_tables.insert(u);
+         }
+         if (!has_multi_index)
+            set_of_tables.insert(t);
+      }
+      for ( auto t : _abi.tables ) {
+         set_of_tables.insert(t);
+      }
+      for ( auto t : set_of_tables ) {
+         o["tables"].push_back(table_to_json( t ));
+      }
+
+      o["ricardian_clauses"]  = ojson::array();
+      o["abi_extensions"]     = ojson::array();
+      return o;
+   }
+
+   abi& get_abi_ref() { return _abi; }
+
+   void set_contract_name( const std::string& cn ) { contract_name = cn; }
+   std::string get_contract_name()const { return contract_name; }
+
+   private: 
+      abi _abi;
+      std::set<const clang::CXXRecordDecl*> tables;
+      std::set<abi_table>                   ctables;
+      std::string contract_name;
+};
+
+abigen& get_abigen_ref() {
+   static abigen ag;
+   return ag;
 }
 
 class EnumivoMethodMatcher : public MatchFinder::MatchCallback {
@@ -538,41 +311,76 @@ class EnumivoMethodMatcher : public MatchFinder::MatchCallback {
       virtual void run( const MatchFinder::MatchResult& res ) {
          if (const clang::CXXMethodDecl* decl = res.Nodes.getNodeAs<clang::CXXMethodDecl>("enumivo_abis")->getCanonicalDecl()) {
             abi abi;
-            if (decl->isEnumivoAction()) {
-               add_struct(decl, get_abi_ref());
-               add_action(decl, get_abi_ref());
+            if (decl->isEnumivoAction() && abigen::is_enumivo_contract(decl, get_abigen_ref().get_contract_name())) {
+               get_abigen_ref().add_struct(decl);
+               get_abigen_ref().add_action(decl);
                auto params = decl->parameters();
                for (auto param : params) {
                   abi_struct abis;
-                  if (param->getType().getTypePtr()->isRecordType() && !is_builtin_type(get_type(param->getType()))) {
-                     add_struct(param->getType().getTypePtr()->getAsCXXRecordDecl(), get_abi_ref());
+                  if (abigen::is_ignorable(param->getType()))
+                     continue;
+
+                  if (param->getType().getTypePtr()->isRecordType() && !get_abigen_ref().is_builtin_type(param->getType())) {
+                     get_abigen_ref().add_struct(param->getType().getTypePtr()->getAsCXXRecordDecl());
                   }
+                  if ( get_abigen_ref().is_template_specialization(param->getType(), {"vector", "optional"})) {
+                     if ( get_abigen_ref().get_template_argument(param->getType())->isRecordType() )
+                        get_abigen_ref().add_struct(get_abigen_ref().get_template_argument(param->getType()).getTypePtr()->getAsCXXRecordDecl());
+                  }
+
                }
             }
          }
       }
-
+   
 };
 
 class EnumivoRecordMatcher : public MatchFinder::MatchCallback {
    public:
       virtual void run( const MatchFinder::MatchResult& res ) {
-         if (const clang::TemplateSpecializationType* type = res.Nodes.getNodeAs<clang::TemplateSpecializationType>("enumivo_abis")) {
-            add_multi_index_table( type, get_abi_ref() );
-         }
-
          if (const clang::CXXRecordDecl* decl = res.Nodes.getNodeAs<clang::CXXRecordDecl>("enumivo_abis")) {
-            if (decl->isEnumivoAction()) {
-               add_struct(decl, get_abi_ref());
-               add_action(decl, get_abi_ref());
+            if (decl->isEnumivoAction() && abigen::is_enumivo_contract(decl, get_abigen_ref().get_contract_name())) {
+               get_abigen_ref().add_struct(decl);
+               get_abigen_ref().add_action(decl);
+               for (auto field : decl->fields()) {
+                  if (!get_abigen_ref().is_builtin_type( field->getType() )) {
+                     if (get_abigen_ref().is_aliasing(field->getType()))
+                        get_abigen_ref().add_typedef(field->getType());
+                     if (field->getType()->isRecordType())
+                        get_abigen_ref().add_struct(field->getType()->getAsCXXRecordDecl());
+                     if ( get_abigen_ref().is_template_specialization(field->getType(), {"vector", "optional"})) {
+                        if ( get_abigen_ref().get_template_argument(field->getType())->isRecordType() )
+                           get_abigen_ref().add_struct(get_abigen_ref().get_template_argument(field->getType()).getTypePtr()->getAsCXXRecordDecl());
+                     }
+                  }
+               }
             }
-            if (decl->isEnumivoTable()) {
-               add_struct(decl, get_abi_ref());
-               auto table_name = decl->getEnumivoTableAttr()->getName();
-               add_table( decl, get_abi_ref());
+            if (decl->isEnumivoTable() && abigen::is_enumivo_contract(decl, get_abigen_ref().get_contract_name())) {
+               get_abigen_ref().add_struct(decl);
+               get_abigen_ref().add_table(decl);
+               for (auto field : decl->fields())
+                  if (!get_abigen_ref().is_builtin_type( field->getType() )) {
+                     if (get_abigen_ref().is_aliasing(field->getType()))
+                        get_abigen_ref().add_typedef(field->getType());
+                     if (field->getType()->isRecordType())
+                        get_abigen_ref().add_struct(field->getType()->getAsCXXRecordDecl());
+                     if ( get_abigen_ref().is_template_specialization(field->getType(), {"vector", "optional"})) {
+                        if ( get_abigen_ref().get_template_argument(field->getType())->isRecordType() )
+                           get_abigen_ref().add_struct(get_abigen_ref().get_template_argument(field->getType()).getTypePtr()->getAsCXXRecordDecl());
+                     }
+                  }
+            }
+         }
+      
+         if (const clang::ClassTemplateSpecializationDecl* decl = res.Nodes.getNodeAs<clang::ClassTemplateSpecializationDecl>("enumivo_abis")) {
+            if ( decl->getName() == "multi_index" ) {
+               get_abigen_ref().add_table(decl->getTemplateArgs()[0].getAsIntegral().getExtValue(),
+                                         (clang::CXXRecordDecl*)((clang::RecordType*)decl->getTemplateArgs()[1].getAsType().getTypePtr())->getDecl());
             }
          }
       }
+
+
 };
 
 int main(int argc, const char **argv) {
@@ -585,6 +393,11 @@ int main(int argc, const char **argv) {
    cl::opt<std::string> abidir(
     "output",
     cl::desc("Set the output filename and fullpath"),
+    cl::Required,
+    cl::cat(cat));
+   cl::opt<std::string> contract_name(
+    "contract",
+    cl::desc("Set the contract name"),
     cl::Required,
     cl::cat(cat));
    cl::opt<bool> def(
@@ -614,13 +427,13 @@ int main(int argc, const char **argv) {
    options.push_back("-fno-exceptions");
    options.push_back("-I${Boost_INCLUDE_DIRS}");
    options.push_back("-Wno-everything");
-   options.push_back(std::string("-I")+WhereAmI()+"/../include/libcxx");
-   options.push_back(std::string("-I")+WhereAmI()+"/../include/libc");
-   options.push_back(std::string("-I")+WhereAmI()+"/../include");
-   options.push_back(std::string("-I")+WhereAmI()+"/../../../../../libraries/libc++/libcxx/include");
-   options.push_back(std::string("-I")+WhereAmI()+"/../../../../../libraries/libc/musl/include");
-   options.push_back(std::string("-I")+WhereAmI()+"/../../../../../libraries");
-   options.push_back(std::string("-I")+WhereAmI()+"/../../../../../libraries/boost/include");
+   options.push_back(std::string("-I")+enumivo::cdt::whereami::where()+"/../include/libcxx");
+   options.push_back(std::string("-I")+enumivo::cdt::whereami::where()+"/../include/libc");
+   options.push_back(std::string("-I")+enumivo::cdt::whereami::where()+"/../include");
+   options.push_back(std::string("-I")+enumivo::cdt::whereami::where()+"/../../../../../libraries/libc++/libcxx/include");
+   options.push_back(std::string("-I")+enumivo::cdt::whereami::where()+"/../../../../../libraries/libc/musl/include");
+   options.push_back(std::string("-I")+enumivo::cdt::whereami::where()+"/../../../../../libraries");
+   options.push_back(std::string("-I")+enumivo::cdt::whereami::where()+"/../../../../../libraries/boost/include");
 
    int size = options.size();
    const char** new_argv = new const char*[size];
@@ -630,18 +443,19 @@ int main(int argc, const char **argv) {
    CommonOptionsParser opts( size, new_argv, cat, 0 );
 
    ClangTool tool( opts.getCompilations(), opts.getSourcePathList());
+   get_abigen_ref().set_contract_name(contract_name);
    EnumivoMethodMatcher enumivo_method_matcher;
    EnumivoRecordMatcher enumivo_record_matcher;
    MatchFinder finder;
    finder.addMatcher(function_decl_matcher, &enumivo_method_matcher);
    finder.addMatcher(record_decl_matcher, &enumivo_record_matcher);
-   finder.addMatcher(typedef_decl_matcher, &enumivo_record_matcher);
+   finder.addMatcher(class_tmp_matcher, &enumivo_record_matcher);
+
    int tool_run = -1;
    try {
       tool_run = tool.run(newFrontendActionFactory(&finder).get());
-
       std::ofstream output(abidir);
-      output << pretty_print(abi_to_json(get_abi_ref()));
+      output << pretty_print(get_abigen_ref().to_json());
       output.close();
    } catch (std::exception& ex) {
       std::cout << ex.what() << "\n";

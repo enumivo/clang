@@ -852,6 +852,20 @@ Sample usage:
   }];
 }
 
+def EnumivoIgnoreDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+The ``enumivo::ignore`` attribute marks a template struct as an ignorable type.
+  }];
+}
+
+def EnumivoContractDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+The ``enumivo::contract`` attribute marks a method as being an enumivo contract.
+  }];
+}
+
 def EnumivoActionDocs : Documentation {
   let Category = DocCatFunction;
   let Content = [{

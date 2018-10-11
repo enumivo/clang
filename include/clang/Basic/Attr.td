@@ -929,6 +929,19 @@ def C11NoReturn : InheritableAttr {
   let Documentation = [C11NoReturnDocs];
 }
 
+def EnumivoIgnore : InheritableAttr {
+   let Spellings = [CXX11<"enumivo", "ignore">, GNU<"enumivo_ignore">];
+   let Subjects = SubjectList<[CXXRecord, Record]>;
+   let Documentation = [EnumivoIgnoreDocs];
+}
+
+def EnumivoContract : InheritableAttr {
+   let Spellings = [CXX11<"enumivo", "contract">, GNU<"enumivo_contract">];
+   let Args = [StringArgument<"name", 1>];
+   let Subjects = SubjectList<[CXXRecord, CXXMethod]>;
+   let Documentation = [EnumivoContractDocs];
+}
+
 def EnumivoAction : InheritableAttr {
    let Spellings = [CXX11<"enumivo", "action">, GNU<"enumivo_action">];
    let Args = [StringArgument<"name", 1>];

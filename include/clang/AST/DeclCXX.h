@@ -725,10 +725,13 @@ public:
 
   /// Iterator that traverses the base classes of a class.
   using base_class_const_iterator = const CXXBaseSpecifier *;
+  bool isEnumivoContract() const { return hasAttr<EnumivoContractAttr>(); }
   bool isEnumivoAction() const { return hasAttr<EnumivoActionAttr>(); }
   bool isEnumivoTable() const { return hasAttr<EnumivoTableAttr>(); }
+  bool isEnumivoIgnore() const { return hasAttr<EnumivoIgnoreAttr>(); }
   EnumivoActionAttr* getEnumivoActionAttr() const { return getAttr<EnumivoActionAttr>(); }
   EnumivoTableAttr*  getEnumivoTableAttr() const { return getAttr<EnumivoTableAttr>(); }
+  EnumivoContractAttr*  getEnumivoContractAttr() const { return getAttr<EnumivoContractAttr>(); }
 
 
   CXXRecordDecl *getCanonicalDecl() override {
@@ -2064,7 +2067,9 @@ public:
   bool isStatic() const;
   bool isInstance() const { return !isStatic(); }
   bool isEnumivoAction() const { return hasAttr<EnumivoActionAttr>(); }
+  bool isEnumivoContract() const { return hasAttr<EnumivoContractAttr>(); }
   EnumivoActionAttr* getEnumivoActionAttr() const { return getAttr<EnumivoActionAttr>(); }
+  EnumivoContractAttr* getEnumivoContractAttr() const { return getAttr<EnumivoContractAttr>(); }
 
   /// Returns true if the given operator is implicitly static in a record
   /// context.
