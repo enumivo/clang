@@ -386,9 +386,6 @@ bool Sema::checkStringLiteralArgumentAttr(const AttributeList &AL,
   Str = Literal->getString();
   return true;
 }
-<<<<<<< HEAD
-static void handleEnumivoActionAttribute(Sema &S, Decl *D, const AttributeList &AL) {
-=======
 
 static void handleEnumivoContractAttribute(Sema &S, Decl *D, const AttributeList &AL) {
   // Handle the cases where the attribute has a text message.
@@ -403,7 +400,6 @@ static void handleEnumivoContractAttribute(Sema &S, Decl *D, const AttributeList
 }
 
 static void handleEnumivoActionAttribute(Sema &S, Decl *D, const AttributeList &AL) {
->>>>>>> upstream/master
   // Handle the cases where the attribute has a text message.
   StringRef Str, Replacement;
   if (AL.isArgExpr(0) && AL.getArgAsExpr(0) &&
