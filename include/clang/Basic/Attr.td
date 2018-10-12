@@ -929,32 +929,32 @@ def C11NoReturn : InheritableAttr {
   let Documentation = [C11NoReturnDocs];
 }
 
-def EosioIgnore : InheritableAttr {
-   let Spellings = [CXX11<"eosio", "ignore">, GNU<"eosio_ignore">];
+def EnumivoIgnore : InheritableAttr {
+   let Spellings = [CXX11<"enumivo", "ignore">, GNU<"enumivo_ignore">];
    let Subjects = SubjectList<[CXXRecord, Record]>;
-   let Documentation = [EosioIgnoreDocs];
+   let Documentation = [EnumivoIgnoreDocs];
 }
 
-def EosioContract : InheritableAttr {
-   let Spellings = [CXX11<"eosio", "contract">, GNU<"eosio_contract">];
+def EnumivoContract : InheritableAttr {
+   let Spellings = [CXX11<"enumivo", "contract">, GNU<"enumivo_contract">];
    let Args = [StringArgument<"name", 1>];
    let Subjects = SubjectList<[CXXRecord, CXXMethod]>;
-   let Documentation = [EosioContractDocs];
+   let Documentation = [EnumivoContractDocs];
 }
 
-def EosioAction : InheritableAttr {
-   let Spellings = [CXX11<"eosio", "action">, GNU<"eosio_action">];
+def EnumivoAction : InheritableAttr {
+   let Spellings = [CXX11<"enumivo", "action">, GNU<"enumivo_action">];
    let Args = [StringArgument<"name", 1>];
    let Subjects = SubjectList<[CXXRecord, CXXMethod]>;
-   let Documentation = [EosioActionDocs];
+   let Documentation = [EnumivoActionDocs];
 }
 
-def EosioTable : InheritableAttr {
-   let Spellings = [CXX11<"eosio", "table">, GNU<"eosio_table">];
+def EnumivoTable : InheritableAttr {
+   let Spellings = [CXX11<"enumivo", "table">, GNU<"enumivo_table">];
    let Args = [StringArgument<"name", 1>];
    let Subjects = SubjectList<[CXXRecord]>;
    let MeaningfulToClassTemplateDefinition = 1;
-   let Documentation = [EosioTableDocs];
+   let Documentation = [EnumivoTableDocs];
 }
 
 def CXX11NoReturn : InheritableAttr {

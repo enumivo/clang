@@ -3636,7 +3636,7 @@ public:
     return const_cast<RecordDecl*>(this)->getMostRecentDecl();
   }
 
-  bool isEosioIgnore() const;
+  bool isEnumivoIgnore() const;
 
   bool hasFlexibleArrayMember() const { return HasFlexibleArrayMember; }
   void setHasFlexibleArrayMember(bool V) { HasFlexibleArrayMember = V; }

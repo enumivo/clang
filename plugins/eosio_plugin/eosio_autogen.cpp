@@ -19,7 +19,7 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Sema.h"
 #include "llvm/Support/raw_ostream.h"
-#include "eosio/gen.hpp"
+#include "enumivo/gen.hpp"
 using namespace clang;
 
 namespace {
@@ -37,7 +37,7 @@ class ValidateVisitor : public RecursiveASTVisitor<ValidateVisitor> {
       bool VisitCXXMethodDecl(CXXMethodDecl* Decl) {
          bool invalid_params = false;
          for (auto param : Decl->parameters()) {
-            bool ignore = eosio::cdt::generation_utils::is_ignorable(param->getType().getNonReferenceType().getUnqualifiedType());
+            bool ignore = enumivo::cdt::generation_utils::is_ignorable(param->getType().getNonReferenceType().getUnqualifiedType());
             if (invalid_params && !ignore)
                emitError(instance, param->getLocation(), "ignorable types cannot be preceded by non-ignorable types, this restriction will be relaxed in future versions");
             invalid_params |= ignore;

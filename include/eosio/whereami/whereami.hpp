@@ -1,6 +1,6 @@
 #pragma once
 
-namespace eosio { namespace cdt {
+namespace enumivo { namespace cdt {
 enum sys {
    win,
    linux,
@@ -57,4 +57,4 @@ struct whereami {
    }
 };
 
-}} // ns eosio::cdt
+}} // ns enumivo::cdt

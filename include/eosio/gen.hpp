@@ -7,9 +7,9 @@
 #include <functional>
 #include <vector>
 #include <string>
-#include "eosio/utils.hpp"
+#include "enumivo/utils.hpp"
 
-namespace eosio { namespace cdt {
+namespace enumivo { namespace cdt {
 
 struct generation_utils {
    std::function<void()> error_handler;
@@ -23,7 +23,7 @@ struct generation_utils {
       auto check = [&](const clang::Type* pt) {
         if (auto tst = llvm::dyn_cast<clang::TemplateSpecializationType>(pt))
          if (auto rt = llvm::dyn_cast<clang::RecordType>(tst->desugar()))
-            return rt->getDecl()->isEosioIgnore();
+            return rt->getDecl()->isEnumivoIgnore();
 
          return false;
       };
@@ -40,7 +40,7 @@ struct generation_utils {
       auto get = [&](const clang::Type* pt) {
          if (auto tst = llvm::dyn_cast<clang::TemplateSpecializationType>(pt))
             if (auto decl = llvm::dyn_cast<clang::RecordType>(tst->desugar()))
-               return decl->getDecl()->isEosioIgnore() ? tst->getArg(0).getAsType() : type;
+               return decl->getDecl()->isEnumivoIgnore() ? tst->getArg(0).getAsType() : type;
          return type;
       };
       
@@ -53,27 +53,27 @@ struct generation_utils {
       return get(t);
    }
 
-   static inline bool is_eosio_contract( const clang::CXXMethodDecl* decl, const std::string& cn ) {
+   static inline bool is_enumivo_contract( const clang::CXXMethodDecl* decl, const std::string& cn ) {
       std::string name = "";
-      if (decl->isEosioContract())
-         name = decl->getEosioContractAttr()->getName();
-      else if (decl->getParent()->isEosioContract())
-         name = decl->getParent()->getEosioContractAttr()->getName();
+      if (decl->isEnumivoContract())
+         name = decl->getEnumivoContractAttr()->getName();
+      else if (decl->getParent()->isEnumivoContract())
+         name = decl->getParent()->getEnumivoContractAttr()->getName();
       if (name.empty()) {
          name = decl->getParent()->getName().str();
       }
       return name == cn; 
    }
 
-   static inline bool is_eosio_contract( const clang::CXXRecordDecl* decl, const std::string& cn ) {
+   static inline bool is_enumivo_contract( const clang::CXXRecordDecl* decl, const std::string& cn ) {
       std::string name = "";
       auto pd = llvm::dyn_cast<clang::CXXRecordDecl>(decl->getParent());
-      if (decl->isEosioContract()) {
-         auto nm = decl->getEosioContractAttr()->getName().str();
+      if (decl->isEnumivoContract()) {
+         auto nm = decl->getEnumivoContractAttr()->getName().str();
          name = nm.empty() ? decl->getName().str() : nm;
       }
-      else if (pd && pd->isEosioContract()) {
-         auto nm = pd->getEosioContractAttr()->getName().str();
+      else if (pd && pd->isEnumivoContract()) {
+         auto nm = pd->getEnumivoContractAttr()->getName().str();
          name = nm.empty() ? pd->getName().str() : nm;
       }
       return cn == name;
@@ -272,4 +272,4 @@ struct generation_utils {
       return get_base_type_name(t).compare(get_type_alias(t)) != 0;
    }
 };
-}} // ns eosio::cdt
+}} // ns enumivo::cdt

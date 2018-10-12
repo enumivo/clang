@@ -852,31 +852,31 @@ Sample usage:
   }];
 }
 
-def EosioIgnoreDocs : Documentation {
+def EnumivoIgnoreDocs : Documentation {
   let Category = DocCatFunction;
   let Content = [{
-The ``eosio::ignore`` attribute marks a template struct as an ignorable type.
+The ``enumivo::ignore`` attribute marks a template struct as an ignorable type.
   }];
 }
 
-def EosioContractDocs : Documentation {
+def EnumivoContractDocs : Documentation {
   let Category = DocCatFunction;
   let Content = [{
-The ``eosio::contract`` attribute marks a method as being an eosio contract.
+The ``enumivo::contract`` attribute marks a method as being an enumivo contract.
   }];
 }
 
-def EosioActionDocs : Documentation {
+def EnumivoActionDocs : Documentation {
   let Category = DocCatFunction;
   let Content = [{
-The ``eosio::action`` attribute marks a method as being an eosio action.
+The ``enumivo::action`` attribute marks a method as being an enumivo action.
   }];
 }
 
-def EosioTableDocs : Documentation {
+def EnumivoTableDocs : Documentation {
   let Category = DocCatFunction;
   let Content = [{
-The ``eosio::table`` attribute marks a record as being an eosio table.
+The ``enumivo::table`` attribute marks a record as being an enumivo table.
   }];
 }
 

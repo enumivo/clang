@@ -387,7 +387,7 @@ bool Sema::checkStringLiteralArgumentAttr(const AttributeList &AL,
   return true;
 }
 
-static void handleEosioContractAttribute(Sema &S, Decl *D, const AttributeList &AL) {
+static void handleEnumivoContractAttribute(Sema &S, Decl *D, const AttributeList &AL) {
   // Handle the cases where the attribute has a text message.
   StringRef Str, Replacement;
   if (AL.isArgExpr(0) && AL.getArgAsExpr(0) &&
@@ -395,11 +395,11 @@ static void handleEosioContractAttribute(Sema &S, Decl *D, const AttributeList &
     return;
 
   D->addAttr(::new (S.Context)
-                 EosioContractAttr(AL.getRange(), S.Context, Str,
+                 EnumivoContractAttr(AL.getRange(), S.Context, Str,
                                 AL.getAttributeSpellingListIndex()));
 }
 
-static void handleEosioActionAttribute(Sema &S, Decl *D, const AttributeList &AL) {
+static void handleEnumivoActionAttribute(Sema &S, Decl *D, const AttributeList &AL) {
   // Handle the cases where the attribute has a text message.
   StringRef Str, Replacement;
   if (AL.isArgExpr(0) && AL.getArgAsExpr(0) &&
@@ -407,11 +407,11 @@ static void handleEosioActionAttribute(Sema &S, Decl *D, const AttributeList &AL
     return;
 
   D->addAttr(::new (S.Context)
-                 EosioActionAttr(AL.getRange(), S.Context, Str,
+                 EnumivoActionAttr(AL.getRange(), S.Context, Str,
                                 AL.getAttributeSpellingListIndex()));
 }
 
-static void handleEosioTableAttribute(Sema &S, Decl *D, const AttributeList &AL) {
+static void handleEnumivoTableAttribute(Sema &S, Decl *D, const AttributeList &AL) {
   // Handle the cases where the attribute has a text message.
   StringRef Str, Replacement;
   if (AL.isArgExpr(0) && AL.getArgAsExpr(0) &&
@@ -419,7 +419,7 @@ static void handleEosioTableAttribute(Sema &S, Decl *D, const AttributeList &AL)
     return;
 
   D->addAttr(::new (S.Context)
-                 EosioTableAttr(AL.getRange(), S.Context, Str,
+                 EnumivoTableAttr(AL.getRange(), S.Context, Str,
                                 AL.getAttributeSpellingListIndex()));
 }
 
@@ -5858,17 +5858,17 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
     S.Diag(AL.getLoc(), diag::err_stmt_attribute_invalid_on_decl)
         << AL.getName() << D->getLocation();
     break;
-  case AttributeList::AT_EosioIgnore:
-    handleSimpleAttribute<EosioIgnoreAttr>(S, D, AL);
+  case AttributeList::AT_EnumivoIgnore:
+    handleSimpleAttribute<EnumivoIgnoreAttr>(S, D, AL);
     break;
-  case AttributeList::AT_EosioAction:
-    handleEosioActionAttribute(S, D, AL);
+  case AttributeList::AT_EnumivoAction:
+    handleEnumivoActionAttribute(S, D, AL);
     break;
-  case AttributeList::AT_EosioTable:
-    handleEosioTableAttribute(S, D, AL);
+  case AttributeList::AT_EnumivoTable:
+    handleEnumivoTableAttribute(S, D, AL);
     break;
-  case AttributeList::AT_EosioContract:
-    handleEosioContractAttribute(S, D, AL);
+  case AttributeList::AT_EnumivoContract:
+    handleEnumivoContractAttribute(S, D, AL);
     break;
   case AttributeList::AT_Interrupt:
     handleInterruptAttr(S, D, AL);
