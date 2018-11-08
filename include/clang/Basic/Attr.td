@@ -935,6 +935,13 @@ def EnumivoIgnore : InheritableAttr {
    let Documentation = [EnumivoIgnoreDocs];
 }
 
+def EnumivoRicardian : InheritableAttr {
+   let Spellings = [CXX11<"enumivo", "ricardian">, GNU<"enumivo_ricardian">];
+   let Args = [StringArgument<"name">];
+   let Subjects = SubjectList<[CXXRecord, CXXMethod]>;
+   let Documentation = [EnumivoRicardianDocs];
+}
+
 def EnumivoContract : InheritableAttr {
    let Spellings = [CXX11<"enumivo", "contract">, GNU<"enumivo_contract">];
    let Args = [StringArgument<"name", 1>];

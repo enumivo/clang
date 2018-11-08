@@ -387,6 +387,17 @@ bool Sema::checkStringLiteralArgumentAttr(const AttributeList &AL,
   return true;
 }
 
+static void handleEnumivoRicardianAttribute(Sema &S, Decl *D, const AttributeList &AL) {
+  // Handle the cases where the attribute has a text message.
+  StringRef Str, Replacement;
+  if (AL.isArgExpr(0) && AL.getArgAsExpr(0) &&
+      !S.checkStringLiteralArgumentAttr(AL, 0, Str))
+    return;
+   D->addAttr(::new (S.Context)
+                 EnumivoRicardianAttr(AL.getRange(), S.Context, Str,
+                                AL.getAttributeSpellingListIndex()));
+}
+
 static void handleEnumivoContractAttribute(Sema &S, Decl *D, const AttributeList &AL) {
   // Handle the cases where the attribute has a text message.
   StringRef Str, Replacement;
@@ -5869,6 +5880,9 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
     break;
   case AttributeList::AT_EnumivoContract:
     handleEnumivoContractAttribute(S, D, AL);
+    break;
+  case AttributeList::AT_EnumivoRicardian:
+    handleEnumivoRicardianAttribute(S, D, AL);
     break;
   case AttributeList::AT_Interrupt:
     handleInterruptAttr(S, D, AL);

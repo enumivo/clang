@@ -859,6 +859,13 @@ The ``enumivo::ignore`` attribute marks a template struct as an ignorable type.
   }];
 }
 
+def EnumivoRicardianDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+The ``enumivo::ricardian`` attribute specifies filename of ricardian contract.
+  }];
+}
+
 def EnumivoContractDocs : Documentation {
   let Category = DocCatFunction;
   let Content = [{

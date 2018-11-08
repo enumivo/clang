@@ -729,10 +729,11 @@ public:
   bool isEnumivoAction() const { return hasAttr<EnumivoActionAttr>(); }
   bool isEnumivoTable() const { return hasAttr<EnumivoTableAttr>(); }
   bool isEnumivoIgnore() const { return hasAttr<EnumivoIgnoreAttr>(); }
+  bool hasEnumivoRicardian() const { return hasAttr<EnumivoRicardianAttr>(); }
   EnumivoActionAttr* getEnumivoActionAttr() const { return getAttr<EnumivoActionAttr>(); }
   EnumivoTableAttr*  getEnumivoTableAttr() const { return getAttr<EnumivoTableAttr>(); }
   EnumivoContractAttr*  getEnumivoContractAttr() const { return getAttr<EnumivoContractAttr>(); }
-
+  EnumivoRicardianAttr*  getEnumivoRicardianAttr() const { return getAttr<EnumivoRicardianAttr>(); }
 
   CXXRecordDecl *getCanonicalDecl() override {
     return cast<CXXRecordDecl>(RecordDecl::getCanonicalDecl());
@@ -2068,8 +2069,10 @@ public:
   bool isInstance() const { return !isStatic(); }
   bool isEnumivoAction() const { return hasAttr<EnumivoActionAttr>(); }
   bool isEnumivoContract() const { return hasAttr<EnumivoContractAttr>(); }
+  bool hasEnumivoRicardian() const { return hasAttr<EnumivoRicardianAttr>(); }
   EnumivoActionAttr* getEnumivoActionAttr() const { return getAttr<EnumivoActionAttr>(); }
   EnumivoContractAttr* getEnumivoContractAttr() const { return getAttr<EnumivoContractAttr>(); }
+  EnumivoRicardianAttr* getEnumivoRicardianAttr() const { return getAttr<EnumivoRicardianAttr>(); }
 
   /// Returns true if the given operator is implicitly static in a record
   /// context.
