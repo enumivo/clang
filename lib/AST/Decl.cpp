@@ -4293,6 +4293,15 @@ ImplicitParamDecl *ImplicitParamDecl::CreateDeserialized(ASTContext &C,
   return new (C, ID) ImplicitParamDecl(C, QualType(), ImplicitParamKind::Other);
 }
 
+bool FunctionDecl::isEnumivoWasmABI()const { return hasAttr<EnumivoWasmABIAttr>(); }
+std::string FunctionDecl::getWasmABI()const { return getAttr<EnumivoWasmABIAttr>()->getAbi(); }
+bool FunctionDecl::isEnumivoWasmEntry()const { return hasAttr<EnumivoWasmEntryAttr>(); }
+bool FunctionDecl::isEnumivoWasmImport()const { return hasAttr<EnumivoWasmImportAttr>(); }
+bool FunctionDecl::isEnumivoWasmAction()const { return hasAttr<EnumivoWasmActionAttr>(); }
+std::string FunctionDecl::getEnumivoWasmAction()const { return getAttr<EnumivoWasmActionAttr>()->getName(); }
+bool FunctionDecl::isEnumivoWasmNotify()const { return hasAttr<EnumivoWasmNotifyAttr>(); }
+std::string FunctionDecl::getEnumivoWasmNotify()const { return getAttr<EnumivoWasmNotifyAttr>()->getName(); }
+
 FunctionDecl *FunctionDecl::Create(ASTContext &C, DeclContext *DC,
                                    SourceLocation StartLoc,
                                    const DeclarationNameInfo &NameInfo,

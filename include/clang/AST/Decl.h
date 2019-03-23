@@ -1941,6 +1941,15 @@ public:
 
   void setRangeEnd(SourceLocation E) { EndRangeLoc = E; }
 
+  bool isEnumivoWasmABI()const;
+  std::string getWasmABI()const;
+  bool isEnumivoWasmEntry()const;
+  bool isEnumivoWasmImport()const;
+  bool isEnumivoWasmAction()const;
+  std::string getEnumivoWasmAction()const;
+  bool isEnumivoWasmNotify()const;
+  std::string getEnumivoWasmNotify()const;
+
   SourceRange getSourceRange() const override LLVM_READONLY;
 
   // Function definitions.

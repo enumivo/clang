@@ -398,7 +398,30 @@ static void handleEnumivoRicardianAttribute(Sema &S, Decl *D, const AttributeLis
                                 AL.getAttributeSpellingListIndex()));
 }
 
+static void handleEnumivoNotifyAttribute(Sema &S, Decl *D, const AttributeList &AL) {
+  // Handle the cases where the attribute has a text message.
+  StringRef Str, Replacement;
+  if (AL.isArgExpr(0) && AL.getArgAsExpr(0) &&
+      !S.checkStringLiteralArgumentAttr(AL, 0, Str))
+    return;
+   
+   D->addAttr(::new (S.Context)
+                 EnumivoNotifyAttr(AL.getRange(), S.Context, Str,
+                                AL.getAttributeSpellingListIndex()));
+}
+
 static void handleEnumivoContractAttribute(Sema &S, Decl *D, const AttributeList &AL) {
+  // Handle the cases where the attribute has a text message.
+  StringRef Str, Replacement;
+  if (AL.isArgExpr(0) && AL.getArgAsExpr(0) &&
+      !S.checkStringLiteralArgumentAttr(AL, 0, Str))
+    return;
+  D->addAttr(::new (S.Context)
+                 EnumivoContractAttr(AL.getRange(), S.Context, Str,
+                                AL.getAttributeSpellingListIndex()));
+}
+
+static void handleEnumivoABIAttribute(Sema &S, Decl *D, const AttributeList &AL) {
   // Handle the cases where the attribute has a text message.
   StringRef Str, Replacement;
   if (AL.isArgExpr(0) && AL.getArgAsExpr(0) &&
@@ -406,7 +429,31 @@ static void handleEnumivoContractAttribute(Sema &S, Decl *D, const AttributeList
     return;
 
   D->addAttr(::new (S.Context)
-                 EnumivoContractAttr(AL.getRange(), S.Context, Str,
+                 EnumivoWasmABIAttr(AL.getRange(), S.Context, Str,
+                                AL.getAttributeSpellingListIndex()));
+}
+
+static void handleEnumivoWasmActionAttribute(Sema &S, Decl *D, const AttributeList &AL) {
+  // Handle the cases where the attribute has a text message.
+  StringRef Str, Replacement;
+  if (AL.isArgExpr(0) && AL.getArgAsExpr(0) &&
+      !S.checkStringLiteralArgumentAttr(AL, 0, Str))
+    return;
+
+  D->addAttr(::new (S.Context)
+                 EnumivoWasmActionAttr(AL.getRange(), S.Context, Str,
+                                AL.getAttributeSpellingListIndex()));
+}
+
+static void handleEnumivoWasmNotifyAttribute(Sema &S, Decl *D, const AttributeList &AL) {
+  // Handle the cases where the attribute has a text message.
+  StringRef Str, Replacement;
+  if (AL.isArgExpr(0) && AL.getArgAsExpr(0) &&
+      !S.checkStringLiteralArgumentAttr(AL, 0, Str))
+    return;
+
+  D->addAttr(::new (S.Context)
+                 EnumivoWasmNotifyAttr(AL.getRange(), S.Context, Str,
                                 AL.getAttributeSpellingListIndex()));
 }
 
@@ -5869,6 +5916,12 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
     S.Diag(AL.getLoc(), diag::err_stmt_attribute_invalid_on_decl)
         << AL.getName() << D->getLocation();
     break;
+  case AttributeList::AT_EnumivoWasmImport:
+    handleSimpleAttribute<EnumivoWasmImportAttr>(S, D, AL);
+    break;
+  case AttributeList::AT_EnumivoWasmEntry:
+    handleSimpleAttribute<EnumivoWasmEntryAttr>(S, D, AL);
+    break;
   case AttributeList::AT_EnumivoIgnore:
     handleSimpleAttribute<EnumivoIgnoreAttr>(S, D, AL);
     break;
@@ -5878,11 +5931,23 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
   case AttributeList::AT_EnumivoTable:
     handleEnumivoTableAttribute(S, D, AL);
     break;
+  case AttributeList::AT_EnumivoWasmABI:
+    handleEnumivoABIAttribute(S, D, AL);
+    break;
+  case AttributeList::AT_EnumivoWasmAction:
+    handleEnumivoWasmActionAttribute(S, D, AL);
+    break;
+  case AttributeList::AT_EnumivoWasmNotify:
+    handleEnumivoWasmNotifyAttribute(S, D, AL);
+    break;
   case AttributeList::AT_EnumivoContract:
     handleEnumivoContractAttribute(S, D, AL);
     break;
   case AttributeList::AT_EnumivoRicardian:
     handleEnumivoRicardianAttribute(S, D, AL);
+    break;
+  case AttributeList::AT_EnumivoNotify:
+    handleEnumivoNotifyAttribute(S, D, AL);
     break;
   case AttributeList::AT_Interrupt:
     handleInterruptAttr(S, D, AL);

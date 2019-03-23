@@ -873,6 +873,13 @@ The ``enumivo::contract`` attribute marks a method as being an enumivo contract.
   }];
 }
 
+def EnumivoWasmImportDocs : Documentation {
+  let Category = DocCatFunction;
+  let Content = [{
+The ``enumivo::wasm_import`` attribute marks a function as a wasm import.
+  }];
+}
+
 def EnumivoActionDocs : Documentation {
   let Category = DocCatFunction;
   let Content = [{

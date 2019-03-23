@@ -2068,9 +2068,11 @@ public:
   bool isStatic() const;
   bool isInstance() const { return !isStatic(); }
   bool isEnumivoAction() const { return hasAttr<EnumivoActionAttr>(); }
+  bool isEnumivoNotify() const { return hasAttr<EnumivoNotifyAttr>(); }
   bool isEnumivoContract() const { return hasAttr<EnumivoContractAttr>(); }
   bool hasEnumivoRicardian() const { return hasAttr<EnumivoRicardianAttr>(); }
   EnumivoActionAttr* getEnumivoActionAttr() const { return getAttr<EnumivoActionAttr>(); }
+  EnumivoNotifyAttr* getEnumivoNotifyAttr() const { return getAttr<EnumivoNotifyAttr>(); }
   EnumivoContractAttr* getEnumivoContractAttr() const { return getAttr<EnumivoContractAttr>(); }
   EnumivoRicardianAttr* getEnumivoRicardianAttr() const { return getAttr<EnumivoRicardianAttr>(); }
 

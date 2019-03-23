@@ -931,7 +931,15 @@ def C11NoReturn : InheritableAttr {
 
 def EnumivoIgnore : InheritableAttr {
    let Spellings = [CXX11<"enumivo", "ignore">, GNU<"enumivo_ignore">];
+   let Args = [StringArgument<"name", 1>];
    let Subjects = SubjectList<[CXXRecord, Record]>;
+   let Documentation = [EnumivoIgnoreDocs];
+}
+
+def EnumivoNotify : InheritableAttr {
+   let Spellings = [CXX11<"enumivo", "on_notify">, GNU<"enumivo_on_notify">];
+   let Args = [StringArgument<"name">];
+   let Subjects = SubjectList<[CXXMethod]>;
    let Documentation = [EnumivoIgnoreDocs];
 }
 
@@ -947,6 +955,39 @@ def EnumivoContract : InheritableAttr {
    let Args = [StringArgument<"name", 1>];
    let Subjects = SubjectList<[CXXRecord, CXXMethod]>;
    let Documentation = [EnumivoContractDocs];
+}
+
+def EnumivoWasmAction : InheritableAttr {
+   let Spellings = [CXX11<"enumivo", "wasm_action">, GNU<"enumivo_wasm_action">];
+   let Args = [StringArgument<"name", 1>];
+   let Subjects = SubjectList<[Function]>;
+   let Documentation = [EnumivoWasmImportDocs];
+}
+
+def EnumivoWasmNotify : InheritableAttr {
+   let Spellings = [CXX11<"enumivo", "wasm_notify">, GNU<"enumivo_wasm_notify">];
+   let Args = [StringArgument<"name", 1>];
+   let Subjects = SubjectList<[Function]>;
+   let Documentation = [EnumivoWasmImportDocs];
+}
+
+def EnumivoWasmABI : InheritableAttr {
+   let Spellings = [CXX11<"enumivo", "wasm_abi">, GNU<"enumivo_wasm_abi">];
+   let Args = [StringArgument<"abi", 1>];
+   let Subjects = SubjectList<[Function]>;
+   let Documentation = [EnumivoWasmImportDocs];
+}
+
+def EnumivoWasmEntry : InheritableAttr {
+   let Spellings = [CXX11<"enumivo", "wasm_entry">, GNU<"enumivo_wasm_entry">];
+   let Subjects = SubjectList<[Function]>;
+   let Documentation = [EnumivoWasmImportDocs];
+}
+
+def EnumivoWasmImport : InheritableAttr {
+   let Spellings = [CXX11<"enumivo", "wasm_import">, GNU<"enumivo_wasm_import">];
+   let Subjects = SubjectList<[Function]>;
+   let Documentation = [EnumivoWasmImportDocs];
 }
 
 def EnumivoAction : InheritableAttr {
